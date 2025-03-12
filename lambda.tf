@@ -19,13 +19,13 @@ resource "aws_lambda_function" "http_api_lambda" {
     }
   }
 
-  # depends_on = [ aws_cloudwatch_log_group.http_api ]
+   depends_on = [ aws_cloudwatch_log_group.http_api ]
 }
 
-# resource "aws_cloudwatch_log_group" "http_api" {
-#   name              = "/aws/lambda/${local.name_prefix}-topmovies-api"
-#   retention_in_days = 7
-# }
+ resource "aws_cloudwatch_log_group" "http_api" {
+   name              = "/aws/lambda/${local.name_prefix}-topmovies-api"
+   retention_in_days = 7
+ }
 
 resource "aws_iam_role" "lambda_exec" {
   name = "${local.name_prefix}-topmovies-api-executionrole"
@@ -86,4 +86,45 @@ POLICY
 resource "aws_iam_role_policy_attachment" "lambda_policy" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_exec_role.arn
+}
+
+
+# --- Terraform Code for CloudWatch Alarm
+
+resource "aws_cloudwatch_log_metric_filter" "lambda_error_filter" {
+  name           = "info-count"
+  log_group_name = aws_cloudwatch_log_group.http_api.name
+
+  //pattern = "{ $.errorMessage = * }"
+  pattern = "[INFO]"
+
+  metric_transformation {
+    name      = "info-count"
+    namespace = "/moviedb-api/aalimsee-ce9"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "lambda_error_alarm" {
+  alarm_name          = "aalimsee-ce9-info-count-breach"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = 10
+  period              = 60
+  statistic          = "Sum"
+  metric_name        = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].name
+  namespace         = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].namespace
+
+  alarm_description  = "Triggers when Lambda function logs an error"
+  alarm_actions      = [aws_sns_topic.lambda_alerts.arn]
+}
+
+resource "aws_sns_topic" "lambda_alerts" {
+  name = "aalimsee-lambda-alerts"
+}
+
+resource "aws_sns_topic_subscription" "email_alert" {
+  topic_arn = aws_sns_topic.lambda_alerts.arn
+  protocol  = "email"
+  endpoint  = "aaron.limse@hotmail.com"
 }
