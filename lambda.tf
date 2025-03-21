@@ -95,7 +95,12 @@ resource "aws_cloudwatch_log_metric_filter" "lambda_error_filter" {
   name           = "info-count"
   log_group_name = aws_cloudwatch_log_group.http_api.name
 
+  # { ... } → Defines a JSON-based filter.
+  # $.errorMessage → Looks for an attribute called errorMessage in the JSON log entry.
+  # = * → Matches any value present in errorMessage (wildcard match).
+  
   //pattern = "{ $.errorMessage = * }"
+
   pattern = "[INFO]"
 
   metric_transformation {
@@ -110,12 +115,12 @@ resource "aws_cloudwatch_metric_alarm" "lambda_error_alarm" {
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   threshold           = 10
-  period              = 60
-  statistic          = "Sum"
-  metric_name        = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].name
-  namespace         = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].namespace
+  period              = 60 # min 60 secs (1 min)
+  statistic           = "Sum"
+  metric_name = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].name
+  namespace   = aws_cloudwatch_log_metric_filter.lambda_error_filter.metric_transformation[0].namespace
 
-  alarm_description  = "Triggers when Lambda function logs an error"
+  alarm_description  = "Triggers when Lambda function logs an INFO"
   alarm_actions      = [aws_sns_topic.lambda_alerts.arn]
 }
 

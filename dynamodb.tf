@@ -7,5 +7,4 @@ resource "aws_dynamodb_table" "table" {
     name = "year"
     type = "N"
   }
-
 }
